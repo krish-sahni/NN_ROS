@@ -89,6 +89,18 @@ void ImagePublisher::createImageConverter(std::shared_ptr<dai::Device> device) {
     converter->setUpdateRosBaseTimeOnToRosMsg(convConfig.updateROSBaseTimeOnRosMsg);
     if(convConfig.lowBandwidth) {
         converter->convertFromBitstream(convConfig.encoding);
+        if(!convConfig.outputDisparity) {
+            try {
+                auto calHandler = device->readCalibration();
+                double baseline = calHandler.getBaselineDistance(pubConfig.leftSocket, pubConfig.rightSocket, false);
+                if(convConfig.reverseSocketOrder) {
+                    baseline = calHandler.getBaselineDistance(pubConfig.rightSocket, pubConfig.leftSocket, false);
+                }
+                converter->convertDispToDepth(baseline);
+            } catch(const std::exception& e) {
+                RCLCPP_DEBUG(node->get_logger(), "Failed to convert disparity to depth: %s", e.what());
+            }
+        }
     }
     if(convConfig.addExposureOffset) {
         converter->addExposureOffset(convConfig.expOffset);
